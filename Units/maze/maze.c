@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "time/time.h"
+
 #include "maze.h"
 #include "list.h"
 
@@ -46,8 +48,7 @@ struct node_t {
 
 void maze_init(struct maze_t *maze)
 {
-  // FIXME
-  srandom(0);
+  srandom(BSP_TIME_GetMicros());
   maze->size = COLS * ROWS;
   memset(maze->grid, 0xff, maze->size * sizeof(int8_t));
 
@@ -81,8 +82,9 @@ void maze_init(struct maze_t *maze)
 
     grid_tmp[road] = 1;
 
-    for (int d = 0; d < 4; d++) {
-      uint32_t wall = _move(road, d, 2);
+    for (int i = 0; i < 4; i++) {
+      uint8_t dir   = dirs >> (2 * i) & 0b11;
+      uint32_t wall = _move(road, dir, 2);
       if (wall == road)
         continue;
       if (grid_tmp[wall] != 0)
