@@ -13,12 +13,12 @@
 ///
 /// 0bXY X: 0=POSITIVE   1=NEGATIVE (DOWN and RIGHT is POSITIVE) \n
 ///      Y: 0=HORIZONTAL 1=VERTICAL
-uint32_t _move(uint32_t pos, uint8_t dir, uint32_t step)
+uint32_t _move(struct maze_t m, uint32_t pos, uint8_t dir, uint32_t step)
 {
-  int64_t res = pos + (dir & 1 ? COLS : 1) * (dir & 2 ? -1 : 1) * step;
-  if (ROW(pos) != ROW(res) && !(dir & 1))
+  int64_t res = pos + (dir & 1 ? m.cols : 1) * (dir & 2 ? -1 : 1) * step;
+  if (pos / m.cols != res / m.cols && !(dir & 1))
     return pos;
-  if (0 > res || res > COLS * ROWS - 1)
+  if (0 > res || res > m.cols * m.rows - 1)
     return pos;
   return res;
 }
@@ -46,17 +46,21 @@ struct node_t {
 };
 
 
-void maze_init(struct maze_t *maze)
+void maze_init(struct maze_t *maze, uint32_t cols, uint32_t rows)
 {
   srandom(BSP_ADC_Get());
-  maze->size = COLS * ROWS;
-  memset(maze->grid, 0xff, maze->size * sizeof(int8_t));
+  maze->cols    = cols;
+  maze->rows    = rows;
+  uint32_t size = cols * rows;
+  maze->grid    = malloc(size);
+  memset(maze->grid, 0xff, size * sizeof(int8_t));
 
-  int8_t grid_tmp[COLS * ROWS] = {0};
+  int8_t *grid_tmp = malloc(size);
+  memset(grid_tmp, 0, size * sizeof(int8_t));
   struct list_head_t walls;
   list_init(&walls);
   struct node_t *rnode = malloc(sizeof(struct node_t));
-  rnode->pos           = POS(1, 1);
+  rnode->pos           = 1 + 1 * cols;
   list_add(&walls, &rnode->list);
 
   while (!list_empty(&walls)) {
@@ -69,7 +73,7 @@ void maze_init(struct maze_t *maze)
     uint8_t dirs = _rand_dirs();
     for (int i = 0; i < 4; i++) {
       uint8_t dir       = dirs >> (2 * i) & 0b11;
-      uint32_t road_tmp = _move(road, dir, 2);
+      uint32_t road_tmp = _move(*maze, road, dir, 2);
       if (road_tmp == road)
         continue;
       if (grid_tmp[road_tmp] != 1)
@@ -84,7 +88,7 @@ void maze_init(struct maze_t *maze)
 
     for (int i = 0; i < 4; i++) {
       uint8_t dir   = dirs >> (2 * i) & 0b11;
-      uint32_t wall = _move(road, dir, 2);
+      uint32_t wall = _move(*maze, road, dir, 2);
       if (wall == road)
         continue;
       if (grid_tmp[wall] != 0)
@@ -96,4 +100,11 @@ void maze_init(struct maze_t *maze)
       list_add(&walls, &wnode->list);
     }
   }
+  free(grid_tmp);
+}
+
+
+void maze_free(struct maze_t *maze)
+{
+  free(maze->grid);
 }

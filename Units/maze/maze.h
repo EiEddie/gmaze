@@ -2,20 +2,14 @@
 #define STM32_UNITS_MAZE_MAZE_H_
 
 
-#define COLS      25
-#define ROWS      13
-
-#define COL(p)    ((p) % COLS)
-#define ROW(p)    ((p) / COLS)
-#define POS(x, y) ((x) + (y) * COLS)
-
 struct maze_t {
-  uint32_t size;
+  uint32_t cols, rows;
   /// 0: undef; 1: road; -1: wall
-  int8_t grid[COLS * ROWS];
+  int8_t *grid;
 };
 
-void maze_init(struct maze_t *maze);
+void maze_init(struct maze_t *maze, uint32_t cols, uint32_t rows);
+void maze_free(struct maze_t* maze);
 
 
 #endif // STM32_UNITS_MAZE_MAZE_H_

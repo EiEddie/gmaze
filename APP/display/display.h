@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 
-void APP_DISPLAY_ShowMaze(struct BSP_OLED_TypeDef device, struct maze_t maze);
+void APP_DISPLAY_ShowMaze(struct BSP_OLED_TypeDef device, struct maze_t maze, uint16_t block);
 
 
 #ifdef __cplusplus
