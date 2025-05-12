@@ -2,8 +2,8 @@
 #define STM32_UNITS_MAZE_MAZE_H_
 
 
-#define COLS      17
-#define ROWS      17
+#define COLS      25
+#define ROWS      13
 
 #define COL(p)    ((p) % COLS)
 #define ROW(p)    ((p) / COLS)

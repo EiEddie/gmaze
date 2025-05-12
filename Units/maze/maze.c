@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "time/time.h"
+#include "adc/adc.h"
 
 #include "maze.h"
 #include "list.h"
@@ -48,7 +48,7 @@ struct node_t {
 
 void maze_init(struct maze_t *maze)
 {
-  srandom(BSP_TIME_GetMicros());
+  srandom(BSP_ADC_Get());
   maze->size = COLS * ROWS;
   memset(maze->grid, 0xff, maze->size * sizeof(int8_t));
 
