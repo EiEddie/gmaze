@@ -84,7 +84,7 @@ void BSP_OLED_Clean(struct BSP_OLED_TypeDef device)
 void BSP_OLED_PageDisplay(struct BSP_OLED_TypeDef device, uint32_t page, uint32_t start, uint8_t *data, uint32_t len)
 {
   _cmd(device, 0xb0 | page);                  // 换页
-  _cmd(device, 0x00 | ((start & 0xf0) >> 4)); // 低位列起始地址
-  _cmd(device, 0x10 | (start & 0x0f));        // 高位列起始地址
+  _cmd(device, 0x00 | (start & 0x0f));        // 低位列起始地址
+  _cmd(device, 0x10 | ((start & 0xf0) >> 4)); // 高位列起始地址
   _data(device, data, len);
 }
