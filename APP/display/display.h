@@ -20,6 +20,9 @@ extern "C" {
  */
 void APP_DISPLAY_ShowMaze(struct BSP_OLED_TypeDef device, struct maze_t maze, uint16_t block, uint16_t erode);
 
+void APP_DISPLAY_ShowCircle(struct BSP_OLED_TypeDef device, struct maze_t maze, uint16_t block, uint16_t erode,
+                            uint32_t x, uint32_t y);
+
 
 #ifdef __cplusplus
 }

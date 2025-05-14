@@ -6,7 +6,11 @@
 #include "oled/oled.h"
 
 
-#define PAGE 8
+#define PAGE       8
+
+#define MIN(x, y)  ((x) > (y) ? (y) : (x))
+#define CEIL(x, y) (((x) - 1) / (y) + 1)
+#define ABS(x)     ((x) > 0 ? (x) : -(x))
 
 
 uint8_t _get_page_from_bg(struct maze_t maze, uint32_t page, uint32_t col, uint16_t block, uint16_t erode)
@@ -54,31 +58,82 @@ uint8_t _get_page_from_bg(struct maze_t maze, uint32_t page, uint32_t col, uint1
 }
 
 
+void _get_pages_from_bg(struct maze_t maze, uint32_t page, uint8_t *buf, uint32_t col_bg, uint32_t col_ed,
+                        uint16_t block, uint16_t erode)
+{
+  uint8_t before = 0xff;
+  if (col_bg != 0)
+    before = _get_page_from_bg(maze, page, col_bg - 1, block, erode);
+
+  *buf            = _get_page_from_bg(maze, page, col_bg, block, erode);
+  uint8_t *offset = buf + block - col_bg % block;
+  memset(buf, *buf, offset - buf);
+
+  for (int c = col_bg + block; c <= col_ed; c += block) {
+    *offset = _get_page_from_bg(maze, page, c, block, erode);
+    memset(offset, *offset, MIN(block, col_ed - c + 1));
+    offset += block;
+  }
+
+  uint8_t *prev = &before;
+  for (int i = 0; i < MIN(col_ed - col_bg + 1, maze.cols * block); i++) {
+    uint8_t tmp = buf[i];
+    buf[i] &= before;
+    *prev &= tmp;
+    prev   = buf + i;
+    before = tmp;
+  }
+}
+
+
 void APP_DISPLAY_ShowMaze(struct BSP_OLED_TypeDef device, struct maze_t maze, uint16_t block, uint16_t erode)
 {
   uint8_t buf[BSP_OLED_SCR_COLS];
-  for (int p = 0; p < (block * maze.rows - 1) / BSP_OLED_SCR_PAGES + 1 && p < BSP_OLED_SCR_PAGES; p++) {
-    uint8_t before = _get_page_from_bg(maze, p, 0, block, erode);
-    uint8_t now    = before;
+  for (int p = 0; p < MIN(CEIL(block * maze.rows, BSP_OLED_SCR_PAGES), BSP_OLED_SCR_PAGES); p++) {
+    _get_pages_from_bg(maze, p, buf, 0, BSP_OLED_SCR_COLS - 1, block, erode);
+    BSP_OLED_PageDisplay(device, p, 0, buf, MIN(block * maze.cols, BSP_OLED_SCR_COLS));
+  }
+}
 
-    for (int c = 0; c < maze.cols; c++) {
-      if (c * block + block - 1 >= BSP_OLED_SCR_COLS)
-        break;
 
-      uint8_t after = _get_page_from_bg(maze, p, (c + 1) * block, block, erode);
-      if (c + 1 >= maze.cols)
-        after = now;
-      memset(buf, now, block);
-      buf[0] &= before;
-      buf[block - 1] &= after;
-      for (int i = 0; i < erode - 1; i++) {
-        buf[i + 1]         = buf[i];
-        buf[block - i - 2] = buf[block - i - 1];
+void _draw(uint8_t *buf, uint32_t a)
+{
+  memset(buf, 1, a * a);
+}
+
+
+void APP_DISPLAY_ShowCircle(struct BSP_OLED_TypeDef device, struct maze_t maze, uint16_t block, uint16_t erode,
+                            uint32_t x, uint32_t y)
+{
+  uint8_t buf[128];
+  _draw(buf, block);
+
+  uint32_t pages  = CEIL(block, PAGE) + 1;
+  uint32_t offset = y % PAGE;
+  for (int c = 0; c < block; c++) {
+    for (int p = 0; p < pages - 1; p++) {
+      uint8_t pdata = 0;
+      for (int i = 0; i < 8; i++) {
+        if (p * PAGE + i >= block)
+          break;
+        pdata |= (1 << i) * (1 & buf[c + (p * PAGE + i) * block]);
       }
-
-      BSP_OLED_PageDisplay(device, p, c * block, buf, block);
-      before = buf[block - 1];
-      now    = after;
+      buf[c + p * block] = pdata;
     }
+
+    buf[c + (pages - 1) * block] = 0;
+    for (int p = pages - 1; p >= 0; p--) {
+      buf[c + p * block] <<= offset;
+      if (p != 0)
+        buf[c + p * block] |= buf[c + (p - 1) * block] >> (PAGE - offset);
+    }
+  }
+
+  uint8_t bg[128];
+  for (int p = 0; p < pages; p++) {
+    _get_pages_from_bg(maze, p + y / PAGE, bg, x, x + block, block, erode);
+    for (int c = 0; c < block; c++)
+      buf[c + p * block] |= bg[c];
+    BSP_OLED_PageDisplay(device, p + y / PAGE, x, buf + p * block, block);
   }
 }
