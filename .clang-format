@@ -9,7 +9,7 @@ Language: Cpp
 UseTab: Never
 IndentWidth: 2
 TabWidth: 2
-ColumnLimit: 0
+ColumnLimit: 120
 MaxEmptyLinesToKeep: 2
 AccessModifierOffset: -4
 NamespaceIndentation: All
@@ -20,9 +20,9 @@ BreakBeforeBraces: Linux
 #          other styles
 ###################################
 
-AllowShortIfStatementsOnASingleLine: true
-AllowShortLoopsOnASingleLine: true
-AllowShortBlocksOnASingleLine: Always
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
 IndentCaseLabels: true
 SortIncludes: Never
 AlignConsecutiveMacros: AcrossEmptyLines
