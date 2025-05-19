@@ -13,12 +13,12 @@
 ///
 /// 0bXY X: 0=POSITIVE   1=NEGATIVE (DOWN and RIGHT is POSITIVE) \n
 ///      Y: 0=HORIZONTAL 1=VERTICAL
-uint32_t _move(struct maze_t m, uint32_t pos, uint8_t dir, uint32_t step)
+uint32_t maze_move(struct maze_t *maze, uint32_t pos, uint8_t dir, uint32_t step)
 {
-  int64_t res = pos + (dir & 1 ? m.cols : 1) * (dir & 2 ? -1 : 1) * step;
-  if (pos / m.cols != res / m.cols && !(dir & 1))
+  int64_t res = pos + (dir & 1 ? maze->cols : 1) * (dir & 2 ? -1 : 1) * step;
+  if (pos / maze->cols != res / maze->cols && !(dir & 1))
     return pos;
-  if (0 > res || res > m.cols * m.rows - 1)
+  if (0 > res || res > maze->cols * maze->rows - 1)
     return pos;
   return res;
 }
@@ -64,16 +64,15 @@ void maze_init(struct maze_t *maze, uint32_t cols, uint32_t rows)
   list_add(&walls, &rnode->list);
 
   while (!list_empty(&walls)) {
-    struct node_t *nptr = container_of(
-        list_pop(&walls), struct node_t, list);
-    uint32_t road = nptr->pos;
+    struct node_t *nptr = container_of(list_pop(&walls), struct node_t, list);
+    uint32_t road       = nptr->pos;
     free(nptr);
     maze->grid[road] = 1;
 
     uint8_t dirs = _rand_dirs();
     for (int i = 0; i < 4; i++) {
       uint8_t dir       = dirs >> (2 * i) & 0b11;
-      uint32_t road_tmp = _move(*maze, road, dir, 2);
+      uint32_t road_tmp = maze_move(maze, road, dir, 2);
       if (road_tmp == road)
         continue;
       if (grid_tmp[road_tmp] != 1)
@@ -88,15 +87,14 @@ void maze_init(struct maze_t *maze, uint32_t cols, uint32_t rows)
 
     for (int i = 0; i < 4; i++) {
       uint8_t dir   = dirs >> (2 * i) & 0b11;
-      uint32_t wall = _move(*maze, road, dir, 2);
+      uint32_t wall = maze_move(maze, road, dir, 2);
       if (wall == road)
         continue;
       if (grid_tmp[wall] != 0)
         continue;
-      grid_tmp[wall] = -1;
-      struct node_t *wnode =
-          malloc(sizeof(struct node_t));
-      wnode->pos = wall;
+      grid_tmp[wall]       = -1;
+      struct node_t *wnode = malloc(sizeof(struct node_t));
+      wnode->pos           = wall;
       list_add(&walls, &wnode->list);
     }
   }
