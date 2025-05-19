@@ -10,7 +10,7 @@ extern "C" {
 
 
 /**
- * \brief 在屏幕上显示迷宫
+ * \brief 将迷宫的图案存入缓冲区
  *
  * \param block 迷宫中一个路点或墙点在屏幕上显示的像素块边长.
  * \param erode 侵蚀宽度, 在路两旁侵蚀这个宽度的墙壁.
@@ -18,10 +18,12 @@ extern "C" {
  *
  * \note 被侵蚀后的墙壁宽度必须 >= 2, 否则会在跨页时产生问题. 函数中未进行判断.
  */
-void APP_DISPLAY_ShowMaze(struct BSP_OLED_TypeDef device, struct maze_t maze, uint16_t block, uint16_t erode);
+void APP_DISPLAY_SaveMazeBackground(uint8_t *buf, struct maze_t maze, uint16_t block, uint16_t erode);
 
-void APP_DISPLAY_ShowCircle(struct BSP_OLED_TypeDef device, struct maze_t maze, uint16_t block, uint16_t erode,
-                            uint32_t x, uint32_t y);
+void APP_DISPLAY_Show(struct BSP_OLED_TypeDef device, uint8_t *buf);
+
+void APP_DISPLAY_ShowBlockWithBackground(struct BSP_OLED_TypeDef device, uint8_t *background, uint8_t *fig,
+                                         uint16_t block, uint32_t x, uint32_t y);
 
 
 #ifdef __cplusplus
