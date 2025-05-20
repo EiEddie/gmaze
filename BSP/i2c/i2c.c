@@ -32,3 +32,10 @@ void BSP_I2C_MemWrite(BSP_I2C_E device, uint16_t dev_addr, uint16_t data_addr, u
   BSP_ASSERT(_handles[device]);
   HAL_I2C_Mem_Write(_handles[device], dev_addr, data_addr, I2C_MEMADD_SIZE_8BIT, data, len, TIMEOUT);
 }
+
+
+void BSP_I2C_MemRead(BSP_I2C_E device, uint16_t dev_addr, uint16_t data_addr, uint8_t *buf, uint16_t len)
+{
+  BSP_ASSERT(_handles[device]);
+  HAL_I2C_Mem_Read(_handles[device], dev_addr, data_addr, I2C_MEMADD_SIZE_8BIT, buf, len, HAL_MAX_DELAY);
+}
