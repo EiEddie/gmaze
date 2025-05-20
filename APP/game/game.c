@@ -73,12 +73,7 @@ uint8_t APP_GAME_Move(struct game_t *game, float dt)
 
   uint8_t is_move = 0;
 
-  // 在横向 (x) 移动, 检查是否不能移动
-  uint32_t mx = maze_move(&game->maze, pos, (game->player.vx < 0) << 1 | 0, 1);
-  if (mx == pos || game->maze.grid[mx] < 0) {
-    // 若不能移动, 将速度与方向限制在竖向 (y)
-    game->player.vx = 0;
-  } else if (game->player.y % game->block == 0 && game->player.vx != 0) {
+  if (game->player.y % game->block == 0 && game->player.vx != 0) {
     // y 坐标对齐
     // 可以在 x 方向移动
     is_move++;
@@ -87,11 +82,7 @@ uint8_t APP_GAME_Move(struct game_t *game, float dt)
     v   = ABS(v);
   }
 
-  // 同上
-  uint32_t my = maze_move(&game->maze, pos, (game->player.vy < 0) << 1 | 1, 1);
-  if (my == pos || game->maze.grid[my] < 0) {
-    game->player.vy = 0;
-  } else if (game->player.x % game->block == 0 && game->player.vy != 0) {
+  if (game->player.x % game->block == 0 && game->player.vy != 0) {
     is_move++;
     v   = game->player.vy;
     dir = (v < 0) << 1 | 1;
@@ -105,11 +96,11 @@ uint8_t APP_GAME_Move(struct game_t *game, float dt)
   // 两个方向都可以移动
   // 选速度较大的那个方向
   if (is_move == 2) {
-    float v_s[2] = {game->player.vx, game->player.vy};
-    dir          = ABS(game->player.vx) > ABS(game->player.vy) ? 0 : 1;
-    v            = v_s[dir];
-    dir          = (v < 0) << 1 | dir;
-    v            = ABS(v);
+    const float v_s[2] = {game->player.vx, game->player.vy};
+    dir                = ABS(game->player.vx) > ABS(game->player.vy) ? 0 : 1;
+    v                  = v_s[dir];
+    dir                = (v < 0) << 1 | dir;
+    v                  = ABS(v);
   }
 
   // 在这里, 人物一定可以运动
@@ -140,8 +131,16 @@ uint8_t APP_GAME_Move(struct game_t *game, float dt)
   dx += v * dt;
   dir_prev = dir;
   // 低于屏幕分辨率
-  if (dx < 1 || max <= 0)
+  if (dx < 1)
     return 0;
+
+  // 已经撞到墙
+  // 清零对应方向的速度
+  if (max <= 0) {
+    float *v_s[2] = {&game->player.vx, &game->player.vy};
+    *v_s[dir & 1] = 0;
+    return 0;
+  }
 
   uint32_t *coord[2] = {&game->player.x, &game->player.y};
   uint32_t delta     = MIN((uint32_t)dx, max);
