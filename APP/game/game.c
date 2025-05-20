@@ -25,7 +25,7 @@ void APP_GAME_AddPlayerVelocity(struct game_t *game, float vx, float vy)
 }
 
 
-void APP_GAME_Init(struct game_t *game, uint32_t cols, uint32_t rows, uint32_t block, uint32_t erode)
+void APP_GAME_Init(struct game_t *game, uint32_t cols, uint32_t rows, uint32_t block)
 {
   game->player.vx = 0;
   game->player.vy = 0;
@@ -36,10 +36,19 @@ void APP_GAME_Init(struct game_t *game, uint32_t cols, uint32_t rows, uint32_t b
   maze_init(&game->maze, cols, rows);
 
   game->background = calloc(BSP_OLED_SCR_COLS * BSP_OLED_SCR_PAGES, sizeof(uint8_t));
-  APP_DISPLAY_SaveMazeBackground(game->background, game->maze, block, erode);
+  APP_DISPLAY_SaveMazeBackground(game->background, game->maze, block, MIN(block / 2 - 1, 2));
 
   game->player.fig = malloc(block * block);
   memset(game->player.fig, 0xff, block * block);
+}
+
+
+void APP_GAME_InitPreset(struct game_t *game, enum APP_GAME_Preset_E preset)
+{
+  const struct {
+    uint32_t cols, rows, block;
+  } presets[E_GAME_END] = {{41, 21, 3}, {31, 15, 4}, {25, 13, 5}, {21, 11, 6}, {17, 9, 7}, {15, 7, 8}};
+  APP_GAME_Init(game, presets[preset].cols, presets[preset].rows, presets[preset].block);
 }
 
 

@@ -11,6 +11,17 @@ extern "C" {
 #endif
 
 
+enum APP_GAME_Preset_E {
+  E_GAME_3x = 0,
+  E_GAME_4x,
+  E_GAME_5x,
+  E_GAME_6x,
+  E_GAME_7x,
+  E_GAME_8x,
+  E_GAME_END,
+};
+
+
 struct player_t {
   uint8_t *fig;
   uint32_t x, y;
@@ -30,7 +41,8 @@ struct game_t {
 void APP_GAME_SetPlayerVelocity(struct game_t *game, float vx, float vy);
 void APP_GAME_AddPlayerVelocity(struct game_t *game, float vx, float vy);
 
-void APP_GAME_Init(struct game_t *game, uint32_t cols, uint32_t rows, uint32_t block, uint32_t erode);
+void APP_GAME_Init(struct game_t *game, uint32_t cols, uint32_t rows, uint32_t block);
+void APP_GAME_InitPreset(struct game_t *game, enum APP_GAME_Preset_E preset);
 void APP_GAME_Free(struct game_t *game);
 uint8_t APP_GAME_Move(struct game_t *game, float dt);
 void APP_GAME_Flush(struct game_t *game, struct BSP_OLED_TypeDef device);
