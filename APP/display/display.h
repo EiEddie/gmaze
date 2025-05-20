@@ -20,8 +20,6 @@ extern "C" {
  */
 void APP_DISPLAY_SaveMazeBackground(uint8_t *buf, struct maze_t maze, uint16_t block, uint16_t erode);
 
-void APP_DISPLAY_Show(struct BSP_OLED_TypeDef device, uint8_t *buf);
-
 void APP_DISPLAY_ShowBlockWithBackground(struct BSP_OLED_TypeDef device, uint8_t *background, uint8_t *fig,
                                          uint16_t block, uint32_t x, uint32_t y);
 

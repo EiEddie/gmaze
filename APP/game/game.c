@@ -57,7 +57,12 @@ void APP_GAME_Free(struct game_t *game)
 
 void APP_GAME_Flush(struct game_t *game, struct BSP_OLED_TypeDef device)
 {
-  APP_DISPLAY_Show(device, game->background);
+  for (int p = 0; p < BSP_OLED_SCR_PAGES; p++) {
+    BSP_OLED_PageDisplay(device, p, 0, game->background + p * BSP_OLED_SCR_COLS, BSP_OLED_SCR_COLS);
+  }
+
+  APP_DISPLAY_ShowBlockWithBackground(device, game->background, game->player.fig, game->block, game->player.x,
+                                      game->player.y);
 }
 
 

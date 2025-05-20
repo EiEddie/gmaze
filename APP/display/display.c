@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <string.h>
+#include <malloc.h>
 
 #include "display.h"
 #include "maze/maze.h"
@@ -9,6 +10,7 @@
 #define PAGE       8
 
 #define MIN(x, y)  ((x) > (y) ? (y) : (x))
+#define MAX(x, y)  ((x) > (y) ? (x) : (y))
 #define CEIL(x, y) (((x) - 1) / (y) + 1)
 #define ABS(x)     ((x) > 0 ? (x) : -(x))
 
@@ -99,59 +101,58 @@ void APP_DISPLAY_SaveMazeBackground(uint8_t *buf, struct maze_t maze, uint16_t b
 }
 
 
-void APP_DISPLAY_Show(struct BSP_OLED_TypeDef device, uint8_t *buf)
-{
-  for (int p = 0; p < BSP_OLED_SCR_PAGES; p++) {
-    // TODO: 更好的写法; 避免使用屏幕数据
-    BSP_OLED_PageDisplay(device, p, 0, buf + p * BSP_OLED_SCR_COLS, BSP_OLED_SCR_COLS);
-  }
-}
-
-
 void APP_DISPLAY_ShowBlockWithBackground(struct BSP_OLED_TypeDef device, uint8_t *background, uint8_t *fig,
                                          uint16_t block, uint32_t x, uint32_t y)
 {
-  // FIXME: 整理逻辑, 重构代码, 添加注释
-
-  // TODO: 最小化刷新页: 不跨页时只刷新一页
-  uint32_t pages  = CEIL(block, PAGE) + 1;
   uint32_t offset = y % PAGE;
+  uint32_t pages  = CEIL(offset + block, PAGE);
 
   if (fig == NULL)
     goto empty;
 
-  uint8_t buf[128];
+  // 将二维数组的图案重组成 BITSET 所用的缓冲区
+  // 缓冲区是宽 block, 高 pages * 8 的二维数组, 以线性组织
+  uint8_t *buf = calloc(block * pages * PAGE, sizeof(uint8_t));
   memcpy(buf, fig, block * block);
 
+  // 将 fig 中存储的图像原样转换为 BITSET
   for (int c = 0; c < block; c++) {
-    for (int p = 0; p < pages - 1; p++) {
+    for (int p = 0; p < pages; p++) {
       uint8_t pdata = 0;
       for (int i = 0; i < 8; i++) {
-        if (p * PAGE + i >= block)
-          break;
-        pdata |= (1 << i) * (1 & buf[c + (p * PAGE + i) * block]);
+        // 先在竖向按页遍历, 再在每一页中按点遍历
+        pdata |= (1 << i) * (!!buf[(p * PAGE + i) * block + c]);
       }
       buf[c + p * block] = pdata;
     }
 
-    buf[c + (pages - 1) * block] = 0;
-    for (int p = pages - 1; p >= 0; p--) {
+    // 将 BITSET 向下移动 offset 个单位
+    // 为了使 BITSET 恰好在传入的坐标位置
+    for (int64_t p = pages - 1; p >= 0; p--) {
+      // 将每个页的数据移位 offset
+      // 超出 uint8 的部分存入下方一个 page 中
       buf[c + p * block] <<= offset;
       if (p != 0)
         buf[c + p * block] |= buf[c + (p - 1) * block] >> (PAGE - offset);
     }
   }
 
+  // 刷新对应页
+  // 最小刷新量: 只会刷新 fig 占用的空间
+  // 即 block 宽, pages 个页
   for (int p = 0; p < pages; p++) {
     for (int c = 0; c < block; c++)
-      buf[c + p * block] |= *(background + (p + y / PAGE) * BSP_OLED_SCR_COLS + x + c);
+      // 将背景叠加上去
+      buf[c + p * block] |= *(background + (p + y / PAGE) * BSP_OLED_SCR_COLS + (x + c));
     BSP_OLED_PageDisplay(device, p + y / PAGE, x, buf + p * block, block);
   }
 
+  free(buf);
   return;
 empty:;
 
   for (int p = 0; p < pages; p++) {
+    // 只打印背景
     BSP_OLED_PageDisplay(device, p + y / PAGE, x, background + (p + y / PAGE) * BSP_OLED_SCR_COLS + x, block);
   }
 }
