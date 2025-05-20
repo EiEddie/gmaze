@@ -10,13 +10,13 @@ void BSP_I2C_Init(BSP_I2C_E device, I2C_HandleTypeDef *handle)
 {
   BSP_ASSERT(device < E_I2C_END);
   BSP_ASSERT(_handles[device] == NULL);
-  _handles[device]   = handle;
+  _handles[device] = handle;
 }
 
 
 uint8_t BSP_I2C_IsReady(BSP_I2C_E device)
 {
-  return HAL_I2C_GetState(_handles[device]) == HAL_I2C_STATE_READY;
+  return _handles[device]->State == HAL_I2C_STATE_READY;
 }
 
 
