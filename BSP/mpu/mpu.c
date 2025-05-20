@@ -4,7 +4,6 @@
 
 #define MPU6050_REG_PWR_MGMT1    0x6B
 #define MPU6050_REG_ACCEL_XOUT_H 0x3B
-#define MPU6050_REG_ACCEL_CONFIG 0x1C
 
 #define MPU6050_ACCEL_FS_2G      (0 << 3)
 #define MPU6050_ACCEL_SCALE_2G   (1.0f / 16384.0f)
@@ -12,6 +11,9 @@
 
 void BSP_MPU_Init(struct BSP_MPU_TypeDef device)
 {
+  while (!BSP_I2C_IsReady(device.i2c_handle))
+    /* nothing */;
+
   uint8_t data;
 
   // 退出休眠
