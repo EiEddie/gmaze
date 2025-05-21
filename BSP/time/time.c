@@ -23,3 +23,9 @@ uint64_t BSP_TIME_GetMicros()
     return (m0 * 1000 + ((tms - u0) * 1000) / tms);
   }
 }
+
+
+void BSP_TIME_Delay(uint32_t interval)
+{
+  HAL_Delay(interval);
+}

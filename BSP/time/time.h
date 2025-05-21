@@ -10,6 +10,7 @@ extern "C" {
 
 uint32_t BSP_TIME_GetMillis();
 uint64_t BSP_TIME_GetMicros();
+void BSP_TIME_Delay(uint32_t interval);
 
 
 #ifdef __cplusplus
