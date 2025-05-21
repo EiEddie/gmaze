@@ -21,7 +21,13 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "adc/adc.h"
+#include "i2c/i2c.h"
+#include "time/time.h"
 
+#include "mpu/mpu.h"
+
+#include "game/game.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -87,7 +93,11 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+  struct BSP_OLED_TypeDef oled = {E_I2C_1, 0x78};
+  struct BSP_MPU_TypeDef mpu   = {E_I2C_2, 0x68 << 1};
+  struct game_t game;
 
+  float k = 150.f;
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -105,16 +115,31 @@ int main(void)
   MX_ADC1_Init();
   MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
-
+  BSP_ADC_Init(&hadc1);
+  BSP_I2C_Init(E_I2C_1, &hi2c1);
+  BSP_I2C_Init(E_I2C_2, &hi2c2);
+  BSP_OLED_Init(oled);
+  BSP_MPU_Init(mpu);
+  APP_GAME_InitPreset(&game, E_GAME_6x);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  APP_GAME_Flush(&game, oled);
+  uint32_t time = BSP_TIME_GetMillis();
   while (1) {
+    uint32_t now = BSP_TIME_GetMillis();
+    vec3f_t a    = BSP_MPU_GetAccel(mpu);
+    float dt     = (float)(now - time) / 1e3f;
+    APP_GAME_AddPlayerVelocity(&game, -k * a.y * dt, -k * a.x * dt);
+    APP_GAME_Update(&game, oled, dt);
+    BSP_TIME_Delay(5);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    time = now;
   }
+  // APP_GAME_Free(&game);
   /* USER CODE END 3 */
 }
 
