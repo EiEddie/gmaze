@@ -1,6 +1,6 @@
-#include "i2c/i2c.h"
-
 #include "oled.h"
+#include "i2c/i2c.h"
+#include "time/time.h"
 
 
 void _cmd(struct BSP_OLED_TypeDef device, uint8_t cmd)
@@ -17,7 +17,7 @@ void _data(struct BSP_OLED_TypeDef device, uint8_t *data, size_t len)
 
 void BSP_OLED_Init(struct BSP_OLED_TypeDef device)
 {
-  while (!BSP_I2C_IsReady(device.i2c_handle))
+    while (!BSP_I2C_IsReady(device.i2c_handle, device.addr))
     /* nothing */;
 
   _cmd(device, 0xAE); // 显示关闭

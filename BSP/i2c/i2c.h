@@ -19,7 +19,7 @@ typedef enum {
 
 
 void BSP_I2C_Init(BSP_I2C_E device, I2C_HandleTypeDef *handle);
-uint8_t BSP_I2C_IsReady(BSP_I2C_E device);
+uint8_t BSP_I2C_IsReady(BSP_I2C_E device, uint16_t dev_addr);
 void BSP_I2C_MasterSend(BSP_I2C_E device, uint16_t dev_addr, uint8_t *data, uint16_t len);
 void BSP_I2C_MemWrite(BSP_I2C_E device, uint16_t dev_addr, uint16_t data_addr, uint8_t *data, uint16_t len);
 void BSP_I2C_MemRead(BSP_I2C_E device, uint16_t dev_addr, uint16_t data_addr, uint8_t *buf, uint16_t len);

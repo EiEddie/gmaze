@@ -1,5 +1,6 @@
 #include "mpu.h"
 #include "i2c/i2c.h"
+#include "time/time.h"
 
 
 #define MPU6050_REG_PWR_MGMT1    0x6B
@@ -11,7 +12,7 @@
 
 void BSP_MPU_Init(struct BSP_MPU_TypeDef device)
 {
-  while (!BSP_I2C_IsReady(device.i2c_handle))
+  while (!BSP_I2C_IsReady(device.i2c_handle, device.addr))
     /* nothing */;
 
   uint8_t data;
