@@ -15,89 +15,125 @@
 #define ABS(x)     ((x) > 0 ? (x) : -(x))
 
 
-uint8_t _get_page_from_bg(struct maze_t maze, uint32_t page, uint32_t col, uint16_t block, uint16_t erode)
+void _save_raw_maze(struct maze_t maze, uint8_t *buf, uint32_t cols, uint32_t pages, uint16_t block)
 {
-  // TODO: 整理逻辑, 添加注释
+#define POS(x, y) ((x) + (y) * maze.cols)
 
-  uint32_t bx     = col / block;
-  uint32_t by_st  = page * PAGE / block;
-  uint32_t by_ed  = (page * PAGE + PAGE - 1) / block;
-  uint32_t offset = block * (by_st + 1) - PAGE * page;
+  for (uint32_t p = 0; p < pages; p++) {
+    for (uint32_t gc = 0; gc < cols / block; gc += 1) {
+      // page 起点所在的 block
+      uint32_t gr_bg = p * PAGE / block;
+      // page 终点 (仍在 page 内) 所在的 block
+      uint32_t gr_ed = ((p + 1) * PAGE - 1) / block;
+      // page 起点在 block 中的偏移量
+      // 因为 page 起点有可能在 block 的中间
+      uint32_t offset = p * PAGE % block;
 
-  uint8_t before = 1;
-  if (page > 0) {
-    uint32_t tmp = (page * PAGE - 1) / block;
-    before       = maze.grid[bx + tmp * maze.cols] < 0;
+      // 当前 block 起点在 buf 中的位置
+      uint8_t *pptr  = buf + p * BSP_OLED_SCR_COLS + gc * block;
+      uint16_t pdata = 0;
+
+      for (uint32_t gr = gr_bg; gr <= gr_ed; gr++) {
+        if (gr >= maze.rows)
+          break;
+
+        // block 个 1 代表一个墙点
+        uint8_t tmp = (1 << block) - 1;
+        tmp *= maze.grid[POS(gc, gr)] < 0;
+        pdata |= tmp << (gr - gr_bg) * block >> offset;
+      }
+
+      memset(pptr, (uint8_t)pdata, MIN(block, BSP_OLED_SCR_COLS - p * block));
+    }
   }
-  uint8_t after = 1;
-  if ((page + 1) * PAGE / block < maze.rows) {
-    uint32_t tmp = (page + 1) * PAGE / block;
-    after        = maze.grid[bx + tmp * maze.cols] < 0;
-  }
-
-  uint8_t res = 0;
-  for (int i = 0; by_st <= by_ed; i++) {
-    uint8_t is_wall;
-    if (bx >= maze.cols || by_st >= maze.rows)
-      is_wall = 0;
-    else
-      is_wall = maze.grid[bx + by_st * maze.cols] < 0;
-    uint16_t tmp = (1 << block) - 1;
-    tmp *= is_wall;
-    tmp <<= block * i;
-    tmp >>= block - offset;
-    res |= tmp;
-    by_st++;
-  }
-
-  for (int _ = 0; _ < erode; _++) {
-    uint8_t tmp = res;
-    res &= tmp << 1 | before;
-    if (by_ed >= maze.rows)
-      continue;
-    res &= tmp >> 1 | after << 7;
-  }
-
-  return res;
 }
 
 
-void _get_pages_from_bg(struct maze_t maze, uint32_t page, uint8_t *buf, uint32_t col, uint16_t block, uint16_t erode)
+void _erode_horizontal(uint8_t *buf, uint32_t cols, uint32_t pages, uint16_t erode)
 {
-  // TODO: 整理逻辑, 添加注释
-
-  uint32_t block_ed = MIN(col / block, maze.cols - 1);
-
-  // 将未经过横向侵蚀的数据放入缓冲区
-  uint8_t *offset = buf;
-  for (uint32_t b = 0; b <= block_ed; b++) {
-    *offset = _get_page_from_bg(maze, page, b * block, block, erode);
-    memset(offset, *offset, MIN(block, col - b * block));
-    offset += block;
-  }
-
-  // 横向侵蚀
-  uint8_t before = 0xff;
-  uint8_t *prev  = &before;
-  for (int _ = 0; _ < erode; _++) {
-    // TODO: 检查边界是否越界
-    for (int i = 0; i <= (block_ed + 1) * block - 1; i++) {
-      uint8_t tmp = buf[i];
-      buf[i] &= before;
-      *prev &= tmp;
-      prev   = buf + i;
-      before = tmp;
+  for (uint32_t p = 0; p < pages; p++) {
+    uint8_t *pptr = buf + p * BSP_OLED_SCR_COLS;
+    // 侵蚀 erode 次
+    for (uint16_t _ = 0; _ < erode; _++) {
+      uint8_t before = 0xff;
+      uint8_t *prev  = &before;
+      // 将每一列与前一列比较
+      // 当有 bit 不一样时, 全部置为 0
+      // 最后一列除外
+      for (uint32_t c = 0; c < cols; c++) {
+        uint8_t tmp = *(pptr + c);
+        *(pptr + c) &= before;
+        *prev &= tmp;
+        prev   = pptr + c;
+        before = tmp;
+      }
     }
+  }
+}
+
+
+void _erode_vertical(uint8_t *buf, uint32_t cols, uint32_t rows, uint32_t pages, uint16_t erode)
+{
+  for (uint32_t c = 0; c < cols; c++) {
+    // 临时缓冲区
+    // 长度应 >= pages
+    // pages 最大值为 8
+    uint8_t tbuf[8];
+#define pptr(p) (buf + (p) * BSP_OLED_SCR_COLS + (c))
+
+    for (uint32_t p = 0; p < pages; p++) {
+      // 将前一页, 当前页与后一页放在 16 位容器中操作
+      // 前一页 4bits, 当前页 8bits, 后一页 4bits
+      // 所以侵蚀宽度最大为 4
+      uint16_t tmp    = 0;
+      uint32_t offset = (rows - 1) % PAGE + 1;
+
+      // 当 page 为 0 时
+      // 前一页 page-1 不存在
+      // 特殊处理, 全部设为 1
+      if (p == 0)
+        tmp |= (1 << 4) - 1;
+      else
+        // 前一页只取高 4 位
+        tmp |= *pptr(p - 1) >> 4;
+
+      tmp |= (uint16_t)*pptr(p) << 4;
+
+      // 最后一页单独处理
+      // 因为可能高位有空白
+      if (p == pages - 1)
+        tmp |= ~0 >> (offset + 4) << (offset + 4);
+      else
+        // 后一页只取低 4 位
+        tmp |= (uint16_t)*pptr(p + 1) << 12;
+
+      // 侵蚀 erode 次
+      for (uint16_t _ = 0; _ < erode; _++) {
+        tmp &= tmp << 1 & tmp;
+        tmp &= tmp >> 1 & tmp;
+      }
+
+      if (p == pages - 1)
+        // 删除侵蚀时多余的 1
+        tbuf[p] = (tmp >> 4) & ((1 << offset) - 1);
+      else
+        tbuf[p] = (tmp >> 4) & (uint8_t)(~0);
+    }
+
+    for (uint32_t p = 0; p < pages; p++)
+      *pptr(p) = tbuf[p];
   }
 }
 
 
 void APP_DISPLAY_SaveMazeBackground(uint8_t *buf, struct maze_t maze, uint16_t block, uint16_t erode)
 {
-  for (int p = 0; p < MIN(CEIL(block * maze.rows, BSP_OLED_SCR_PAGES), BSP_OLED_SCR_PAGES); p++) {
-    // TODO: 更好的写法; 避免使用屏幕数据
-    _get_pages_from_bg(maze, p, buf + p * BSP_OLED_SCR_COLS, BSP_OLED_SCR_COLS, block, erode);
-  }
+  uint32_t pages = MIN(CEIL(maze.rows * block, PAGE), BSP_OLED_SCR_PAGES);
+  uint32_t cols  = MIN(maze.cols * block, BSP_OLED_SCR_COLS);
+  uint32_t rows  = MIN(maze.rows * block, BSP_OLED_SCR_ROWS);
+  _save_raw_maze(maze, buf, cols, pages, block);
+  _erode_horizontal(buf, cols, pages, erode);
+  _erode_vertical(buf, cols, rows, pages, erode);
 }
 
 
