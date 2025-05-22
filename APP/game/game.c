@@ -77,45 +77,41 @@ void APP_GAME_Flush(struct game_t *game, struct BSP_OLED_TypeDef device)
 
 uint8_t APP_GAME_Move(struct game_t *game, float dt)
 {
+  float *v_s[2]    = {&game->player.vx, &game->player.vy};
+  uint32_t *r_s[2] = {&game->player.x, &game->player.y};
+
 #define POS(x, y) ((x) + (y) * game->maze.cols)
-  static uint8_t dir_prev = 0xff;
-  uint8_t dir             = 0;
   // 在迷宫 grid 中的位置
   // 按 block 计数
-  const uint32_t pos = POS(game->player.x / game->block, game->player.y / game->block);
-  float v            = NAN;
+  const uint32_t pos = POS(*r_s[0] / game->block, *r_s[1] / game->block);
 
-  uint8_t is_move = 0;
-
-  if (game->player.y % game->block == 0 && game->player.vx != 0) {
-    // y 坐标对齐
-    // 可以在 x 方向移动
-    is_move++;
-    v   = game->player.vx;
-    dir = (v < 0) << 1 | 0;
-    v   = ABS(v);
+  static uint8_t dir_prev = 0xff;
+  uint8_t dir             = 0;
+  // 方向对齐则可以移动
+  switch (!(*r_s[0] % game->block) * 2 + !(*r_s[1] % game->block)) {
+    case 0b10:
+      // x 坐标对齐
+      // 可以在 y 方向移动
+      dir = 1;
+      break;
+    case 0b01:
+      // y 坐标对齐
+      // 可以在 x 方向移动
+      dir = 0;
+      break;
+    case 0b11:
+      // 两个方向都可以移动
+      // 选速度较大的那个方向
+      dir = ABS(*v_s[0]) < ABS(*v_s[1]);
+      break;
+    case 0b00:
+      return 0;
   }
 
-  if (game->player.x % game->block == 0 && game->player.vy != 0) {
-    is_move++;
-    v   = game->player.vy;
-    dir = (v < 0) << 1 | 1;
-    v   = ABS(v);
-  }
-
-  // 两个方向都不能移动
-  if (!is_move)
-    return 0;
-
-  // 两个方向都可以移动
-  // 选速度较大的那个方向
-  if (is_move == 2) {
-    const float v_s[2] = {game->player.vx, game->player.vy};
-    dir                = ABS(game->player.vx) > ABS(game->player.vy) ? 0 : 1;
-    v                  = v_s[dir];
-    dir                = (v < 0) << 1 | dir;
-    v                  = ABS(v);
-  }
+  float v;
+  v   = *v_s[dir];
+  dir = (v < 0) << 1 | dir;
+  v   = ABS(v);
 
   // 在这里, 人物一定可以运动
   //
@@ -125,10 +121,12 @@ uint8_t APP_GAME_Move(struct game_t *game, float dt)
   // 找到 dir 方向能移动的最远距离
   // 当方向改变, 此距离也需重新计算
   static int64_t max = 0;
+
   // 当移动方向改变, 重新计算距离, 重置累积位移
   if (dir_prev == 0xff || dir_prev != dir) {
     dx         = 0;
     uint32_t p = pos;
+
     // 找到最远能移动的距离
     while (1) {
       uint32_t tmp = maze_move(&game->maze, p, dir, 1);
@@ -136,14 +134,17 @@ uint8_t APP_GAME_Move(struct game_t *game, float dt)
         break;
       p = tmp;
     }
+
     uint32_t unit = game->maze.cols * game->block;
-    int64_t x = (p % game->maze.cols) * game->block, y = (p / game->maze.cols) * game->block;
-    uint32_t tmp = ABS((x - game->player.x) + (y - game->player.y) * unit);
-    max          = tmp / unit + tmp % unit;
+    int64_t x     = (p % game->maze.cols) * game->block;
+    int64_t y     = (p / game->maze.cols) * game->block;
+    uint32_t tmp  = ABS((x - *r_s[0]) + (y - *r_s[1]) * unit);
+    max           = tmp / unit + tmp % unit;
   }
 
   dx += v * dt;
   dir_prev = dir;
+
   // 低于屏幕分辨率
   if (dx < 1)
     return 0;
@@ -151,15 +152,13 @@ uint8_t APP_GAME_Move(struct game_t *game, float dt)
   // 已经撞到墙
   // 清零对应方向的速度
   if (max <= 0) {
-    float *v_s[2] = {&game->player.vx, &game->player.vy};
     *v_s[dir & 1] = 0;
     return 0;
   }
 
-  uint32_t *coord[2] = {&game->player.x, &game->player.y};
-  uint32_t delta     = MIN((uint32_t)dx, max);
-  dx                 = fmodf(dx, 1);
-  *(coord[dir & 1]) += delta * (dir & 0b10 ? -1 : 1);
+  uint32_t delta = MIN((uint32_t)dx, max);
+  dx             = fmodf(dx, 1);
+  *r_s[dir & 1] += delta * (dir & 0b10 ? -1 : 1);
   max -= delta;
   return 1;
 }
