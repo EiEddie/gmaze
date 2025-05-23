@@ -126,6 +126,17 @@ void _erode_vertical(uint8_t *buf, uint32_t cols, uint32_t rows, uint32_t pages,
 }
 
 
+void _add_dot_in_block(uint8_t *buf, uint32_t cols, uint32_t rows, uint16_t block)
+{
+#define SET_1(x, y) (*(buf + (y) / PAGE * BSP_OLED_SCR_COLS + (x)) |= 1 << (y) % PAGE)
+  for (int x = block / 2; x < cols; x += block) {
+    for (int y = block / 2; y < rows; y += block) {
+      SET_1(x, y);
+    }
+  }
+}
+
+
 void APP_DISPLAY_SaveMazeBackground(uint8_t *buf, struct maze_t maze, uint16_t block, uint16_t erode)
 {
   uint32_t pages = MIN(CEIL(maze.rows * block, PAGE), BSP_OLED_SCR_PAGES);
@@ -134,6 +145,7 @@ void APP_DISPLAY_SaveMazeBackground(uint8_t *buf, struct maze_t maze, uint16_t b
   _save_raw_maze(maze, buf, cols, pages, block);
   _erode_horizontal(buf, cols, pages, erode);
   _erode_vertical(buf, cols, rows, pages, erode);
+  _add_dot_in_block(buf, cols, rows, block);
 }
 
 

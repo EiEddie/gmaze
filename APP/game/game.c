@@ -75,7 +75,7 @@ void APP_GAME_Flush(struct game_t *game, struct BSP_OLED_TypeDef device)
 }
 
 
-uint8_t APP_GAME_Move(struct game_t *game, float dt)
+int8_t APP_GAME_Move(struct game_t *game, float dt)
 {
   float *v_s[2]    = {&game->player.vx, &game->player.vy};
   uint32_t *r_s[2] = {&game->player.x, &game->player.y};
@@ -86,7 +86,7 @@ uint8_t APP_GAME_Move(struct game_t *game, float dt)
   const uint32_t pos = POS(*r_s[0] / game->block, *r_s[1] / game->block);
 
   static uint8_t dir_prev = 0xff;
-  uint8_t dir             = 0;
+  int8_t dir              = 0;
   // 方向对齐则可以移动
   switch (!(*r_s[0] % game->block) * 2 + !(*r_s[1] % game->block)) {
     case 0b10:
@@ -105,7 +105,7 @@ uint8_t APP_GAME_Move(struct game_t *game, float dt)
       dir = ABS(*v_s[0]) < ABS(*v_s[1]);
       break;
     case 0b00:
-      return 0;
+      return -1;
   }
 
   float v;
@@ -147,29 +147,49 @@ uint8_t APP_GAME_Move(struct game_t *game, float dt)
 
   // 低于屏幕分辨率
   if (dx < 1)
-    return 0;
+    return -1;
 
   // 已经撞到墙
   // 清零对应方向的速度
   if (max <= 0) {
     *v_s[dir & 1] = 0;
-    return 0;
+    return -1;
   }
 
   uint32_t delta = MIN((uint32_t)dx, max);
   dx             = fmodf(dx, 1);
   *r_s[dir & 1] += delta * (dir & 0b10 ? -1 : 1);
   max -= delta;
-  return 1;
+  return dir;
 }
 
 
 void APP_GAME_Update(struct game_t *game, struct BSP_OLED_TypeDef device, float dt)
 {
-  uint32_t x = game->player.x, y = game->player.y;
-  if (!APP_GAME_Move(game, dt))
+#define PAGE           8
+#define BLOCK_ALIGN(x) ((x) / game->block * game->block)
+#define SET_0(x, y)    (*(game->background + (y) / PAGE * BSP_OLED_SCR_COLS + (x)) &= ~(1 << (y) % PAGE))
+
+  // 移动前的位置
+  uint32_t r_s[2] = {game->player.x, game->player.y};
+  int8_t dir      = APP_GAME_Move(game, dt);
+  if (dir < 0)
     return;
-  APP_DISPLAY_ShowBlockWithBackground(device, game->background, NULL, game->block, x, y);
-  APP_DISPLAY_ShowBlockWithBackground(device, game->background, game->player.fig, game->block, game->player.x,
-                                      game->player.y);
+  // 移动后的位置
+  uint32_t rr_s[2] = {game->player.x, game->player.y};
+
+  // 移动方向正负
+  // 右下正，左上负
+  int64_t sgn = dir & 0b10 ? -1 : 1;
+
+  // 两帧之间必然直线移动
+  // 在该方向上移动
+  int64_t r_mv_s[2] = {r_s[0], r_s[1]};
+  for (; (r_mv_s[dir & 1] - rr_s[dir & 1]) * sgn <= 0; r_mv_s[dir & 1] += sgn * game->block) {
+    // 将迷宫中标记未经过的点去除
+    SET_0(BLOCK_ALIGN(r_mv_s[0]) + game->block / 2, BLOCK_ALIGN(r_mv_s[1]) + game->block / 2);
+  }
+
+  APP_DISPLAY_ShowBlockWithBackground(device, game->background, NULL, game->block, r_s[0], r_s[1]);
+  APP_DISPLAY_ShowBlockWithBackground(device, game->background, game->player.fig, game->block, rr_s[0], rr_s[1]);
 }

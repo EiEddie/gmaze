@@ -44,7 +44,19 @@ void APP_GAME_AddPlayerVelocity(struct game_t *game, float vx, float vy);
 void APP_GAME_Init(struct game_t *game, uint32_t cols, uint32_t rows, uint32_t block);
 void APP_GAME_InitPreset(struct game_t *game, enum APP_GAME_Preset_E preset);
 void APP_GAME_Free(struct game_t *game);
-uint8_t APP_GAME_Move(struct game_t *game, float dt);
+
+/**
+ * \brief 按速度移动人物
+ *
+ * \return 是否移动, 以及移动方向
+ * \retval -1 未移动
+ * \retval 0 [0b00] RIGHT
+ * \retval 1 [0b01] DOWN
+ * \retval 2 [0b10] LEFT
+ * \retval 3 [0b11] UP
+ */
+int8_t APP_GAME_Move(struct game_t *game, float dt);
+
 void APP_GAME_Flush(struct game_t *game, struct BSP_OLED_TypeDef device);
 void APP_GAME_Update(struct game_t *game, struct BSP_OLED_TypeDef device, float dt);
 
